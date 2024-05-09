@@ -1,16 +1,73 @@
-﻿using System;
+﻿using FluentModbus;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ConsoleTestModbusTCP_C_
 {
-    internal class Program
+    class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
+            /* create logger */
+            var loggerFactory = LoggerFactory.Create(loggingBuilder =>
+            {
+                loggingBuilder.SetMinimumLevel(LogLevel.Debug);
+                //loggingBuilder.AddConsole(); // не добавлется вывод в консоль, выведем пока по другому
+            });
             
+            var clientLogger = loggerFactory.CreateLogger("Client");
+
+            /* create Modbus TCP client */
+            var client = new ModbusTcpClient();            
+
+            /* run Modbus TCP client */
+            var task_client = Task.Run(() =>
+            {
+                client.Connect(new IPEndPoint(IPAddress.Parse("192.168.1.2"), 502));
+
+                try
+                {
+                    DoClientWork(client, clientLogger);
+                    Console.WriteLine("работает!!!!!");
+                }
+                catch (Exception ex)
+                {
+                    clientLogger.LogError(ex.Message);
+                    Console.WriteLine("не работает*********");
+                    Console.WriteLine(ex.Message);
+                }
+
+                client.Disconnect();
+
+                Console.WriteLine("Tests finished. Press any key to continue.");
+                Console.ReadKey(intercept: true);
+            });
+
+            // wait for client task to finish
+            await task_client;            
+        }
+
+        static void DoClientWork(ModbusTcpClient client, ILogger logger)
+        {
+            Span<byte> data;
+
+            var sleepTime = TimeSpan.FromMilliseconds(100);
+            var unitIdentifier = 0x01;
+            var startingAddress = 0x11;
+            var amountRegisters = 0x04;
+
+            // ReadInputRegisters = 0x04,          // FC04
+            data = client.ReadInputRegisters<byte>(unitIdentifier, startingAddress, amountRegisters);
+            logger.LogInformation("FC04 - ReadInputRegisters: Done");
+            Console.WriteLine(data.ToArray().GetValue(3));//так не показывается, как посмотреть данные пока х\з, еще и таймер надо зафигачить            
+            Thread.Sleep(sleepTime);            
         }
     }
 }
