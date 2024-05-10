@@ -25,17 +25,23 @@ namespace ConsoleTestModbusTCP_C_
             var clientLogger = loggerFactory.CreateLogger("Client");
 
             /* create Modbus TCP client */
-            var client = new ModbusTcpClient();            
-
+            var client = new ModbusTcpClient();
+            
             /* run Modbus TCP client */
             var task_client = Task.Run(() =>
             {
-                client.Connect(new IPEndPoint(IPAddress.Parse("192.168.1.2"), 502));
+                client.Connect(IPAddress.Parse("192.168.1.2"), ModbusEndianness.BigEndian);
 
                 try
                 {
-                    DoClientWork(client, clientLogger);
-                    Console.WriteLine("работает!!!!!");
+                    while(true)
+                    {
+                        DoClientWork(client, clientLogger);
+                        Console.WriteLine();
+                        Console.WriteLine("***************работает ПАДЛА!!!!!*******************");
+                        Console.WriteLine();
+                    }
+                    
                 }
                 catch (Exception ex)
                 {
@@ -54,21 +60,29 @@ namespace ConsoleTestModbusTCP_C_
             await task_client;            
         }
 
-        static void DoClientWork(ModbusTcpClient client, ILogger logger)
+        public static void DoClientWork(ModbusTcpClient client, ILogger logger)
         {
-            Span<byte> data;
+            //Span<byte> data;
 
-            var sleepTime = TimeSpan.FromMilliseconds(100);
-            var unitIdentifier = 0x01;
-            var startingAddress = 0x11;
-            var amountRegisters = 0x04;
+            var sleepTime = TimeSpan.FromMilliseconds(500);
+            int unitIdentifier = 0x01;
+            var startingAddress = 17;
+            var amountRegisters = 5;
 
             // ReadInputRegisters = 0x04,          // FC04
-            data = client.ReadInputRegisters<byte>(unitIdentifier, startingAddress, amountRegisters);
+            var data = client.ReadInputRegisters<UInt16>(unitIdentifier, startingAddress, amountRegisters);
             logger.LogInformation("FC04 - ReadInputRegisters: Done");
-            Console.WriteLine(data.ToArray().GetValue(3));//так не показывается, как посмотреть данные пока х\з, еще и таймер надо зафигачить            
+
+            Console.WriteLine("длина считанных регистров: " + data.Length);        
+                     
+            Console.WriteLine("дискретные входы: " + data[0]);
+            Console.WriteLine("аналоговый вход 1: " + data[1]);
+            Console.WriteLine("аналоговый вход 2: " + data[2]);
+            Console.WriteLine("аналоговый вход 3: " + data[3]);
+            Console.WriteLine("аналоговый вход 4: " + data[4]);
+
             Thread.Sleep(sleepTime);            
-        }
+        }        
     }
 }
 
